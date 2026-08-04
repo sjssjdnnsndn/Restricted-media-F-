@@ -7,11 +7,15 @@ only from the environment; no credential fallbacks are kept in this copy.
 
 import logging
 import os
+import socket
+import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict
 
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import ReturnDocument
 from pyrogram import Client
 
 
@@ -92,6 +96,9 @@ users_col = None
 tickets_col = None
 settings_col = None
 _db_ok = False
+POLLING_LOCK_ID = "telegram_polling_lock"
+POLLING_LOCK_LEASE_SECONDS = 90
+INSTANCE_ID = f"{socket.gethostname()}:{os.getpid()}:{uuid.uuid4().hex}"
 
 if MONGO_URL:
     try:
@@ -108,6 +115,87 @@ if MONGO_URL:
 
 def has_db():
     return _db_ok
+
+
+async def acquire_polling_lock():
+    """Claim the single Telegram polling lease for this process."""
+    if not has_db():
+        logger.error("Cannot start Telegram polling without MongoDB lock storage")
+        return False
+
+    now = datetime.now(timezone.utc)
+    lease_until = now + timedelta(seconds=POLLING_LOCK_LEASE_SECONDS)
+    try:
+        await settings_col.update_one(
+            {"_id": POLLING_LOCK_ID},
+            {
+                "$setOnInsert": {
+                    "setting": POLLING_LOCK_ID,
+                    "owner": None,
+                    "lease_until": datetime(1970, 1, 1, tzinfo=timezone.utc),
+                }
+            },
+            upsert=True,
+        )
+        lock = await settings_col.find_one_and_update(
+            {
+                "_id": POLLING_LOCK_ID,
+                "$or": [
+                    {"lease_until": {"$lt": now}},
+                    {"lease_until": {"$exists": False}},
+                    {"owner": INSTANCE_ID},
+                ],
+            },
+            {
+                "$set": {
+                    "setting": POLLING_LOCK_ID,
+                    "owner": INSTANCE_ID,
+                    "lease_until": lease_until,
+                    "updated_at": now,
+                }
+            },
+            return_document=ReturnDocument.AFTER,
+        )
+        acquired = bool(lock and lock.get("owner") == INSTANCE_ID)
+        if not acquired:
+            current_owner = lock.get("owner") if lock else "unknown"
+            logger.warning(
+                "Telegram polling lease is held by another instance: %s",
+                current_owner,
+            )
+        return acquired
+    except Exception as error:
+        logger.error("Could not acquire Telegram polling lease: %s", error)
+        return False
+
+
+async def renew_polling_lock():
+    """Renew the lease; false means another process may now poll."""
+    if not has_db():
+        return False
+    now = datetime.now(timezone.utc)
+    result = await settings_col.update_one(
+        {"_id": POLLING_LOCK_ID, "owner": INSTANCE_ID},
+        {
+            "$set": {
+                "lease_until": now + timedelta(seconds=POLLING_LOCK_LEASE_SECONDS),
+                "updated_at": now,
+            }
+        },
+    )
+    return result.modified_count == 1
+
+
+async def release_polling_lock():
+    if not has_db():
+        return
+    try:
+        await settings_col.update_one(
+            {"_id": POLLING_LOCK_ID, "owner": INSTANCE_ID},
+            {"$set": {"owner": None, "lease_until": datetime.now(timezone.utc)}},
+        )
+    except Exception as error:
+        logger.warning("Could not release Telegram polling lease: %s", error)
 
 
 user_states: Dict[int, dict] = {}

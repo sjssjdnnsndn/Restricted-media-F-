@@ -1,2 +1,3 @@
 - [Publishable app registration](publishing-artifacts.md) — Replit Publishing requires a deployable web artifact; API and design artifacts alone can show “nothing to publish.”
 - [Telegram update guards](telegram-update-guards.md) — Ignore bot-authored updates and avoid replying to ordinary text in direct link mode.
+- [Single Telegram poller](single-telegram-poller.md) — Never run the development workflow and published deployment together with the same bot token.

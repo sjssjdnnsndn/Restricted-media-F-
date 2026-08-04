@@ -26,7 +26,15 @@ import logging
 from pyrogram.types import ChatMemberUpdated
 from pyrogram.enums import ChatMemberStatus
 
-from config import bot, _missing, DB_NAME
+from config import (
+    bot,
+    _missing,
+    DB_NAME,
+    acquire_polling_lock,
+    renew_polling_lock,
+    release_polling_lock,
+    POLLING_LOCK_LEASE_SECONDS,
+)
 from database import get_fj
 from web_server import start_web, cleanup_loop, mongo_keepalive, keep_alive_ping
 
@@ -36,6 +44,25 @@ import callbacks       # noqa: F401
 import message_handler # noqa: F401
 
 logger = logging.getLogger(__name__)
+
+
+async def polling_lock_heartbeat():
+    """Keep the single-poller lease alive and stop polling if it is lost."""
+    interval = max(10, POLLING_LOCK_LEASE_SECONDS // 3)
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            if await renew_polling_lock():
+                logger.debug("Telegram polling lease renewed")
+                continue
+            logger.error("Telegram polling lease lost; stopping this poller")
+            try:
+                await bot.stop()
+            except Exception as error:
+                logger.error("Could not stop poller after lease loss: %s", error)
+            return
+        except Exception as error:
+            logger.error("Telegram polling lease renewal failed: %s", error)
 
 
 # ═══════════════════════════════════════════
@@ -123,14 +150,24 @@ async def main():
     logger.info("=" * 60)
 
     await start_web()
+    if not await acquire_polling_lock():
+        logger.warning("This instance is standby-only; Telegram polling will not start")
+        await asyncio.Event().wait()
+        return
+
+    logger.info("Telegram polling lease acquired")
     asyncio.create_task(cleanup_loop())
     asyncio.create_task(mongo_keepalive())
     asyncio.create_task(keep_alive_ping())
-    await bot.start()
-    me = await bot.get_me()
-    logger.info(f"@{me.username} | DB: {DB_NAME}")
-    logger.info("BOT IS RUNNING!")
-    await asyncio.Event().wait()
+    asyncio.create_task(polling_lock_heartbeat())
+    try:
+        await bot.start()
+        me = await bot.get_me()
+        logger.info(f"@{me.username} | DB: {DB_NAME}")
+        logger.info("BOT IS RUNNING!")
+        await asyncio.Event().wait()
+    finally:
+        await release_polling_lock()
 
 
 if __name__ == "__main__":

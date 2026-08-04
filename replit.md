@@ -13,6 +13,9 @@ A private Telegram bot that receives files and saves them into the project for l
 - Required secret: `TELEGRAM_BOT_TOKEN`
 - Optional env: `TELEGRAM_OWNER_CHAT_ID` to pre-authorize one private Telegram chat
 - Optional env: `FILE_RECEIVER_DIR` to change the saved-file directory
+- Main bot runtime: `artifacts/api-server/bot-runtime/`
+- Main bot launcher: `artifacts/api-server/run-bot.sh`
+- Published keep-alive endpoint: `/health` (use the published `https://*.replit.app/health` URL)
 
 ## Stack
 
@@ -34,6 +37,7 @@ A private Telegram bot that receives files and saves them into the project for l
 - Uses Telegram long polling, so it does not require a public webhook URL.
 - The first private chat that sends `/start` becomes the owner when `TELEGRAM_OWNER_CHAT_ID` is not set.
 - Files are saved with sanitized names and message IDs; metadata is appended to `received-files.jsonl`.
+- The main bot runs from a separate runtime copy; the original received files are preserved unchanged.
 
 ## Product
 

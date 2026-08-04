@@ -243,9 +243,14 @@ async def handle_links_and_batch(message, uid, text):
     # ══════════════════════════════════════════════
     links = [l.strip() for l in text.split("\n") if "t.me/" in l or "telegram.me/" in l]
     if not links:
-        await message.reply_text(
-            "\u274c No valid links found.\nSend a t.me/... link or use \ud83d\udce6 Batch!",
-            reply_markup=kb_main())
+        # In direct mode, ignore ordinary conversation text. The previous
+        # behavior replied to every non-command message, which could create a
+        # visible reply loop when duplicate or bot-generated updates arrived.
+        logger.info(
+            "Ignoring non-link private message in direct mode: uid=%s message_id=%s",
+            uid,
+            getattr(message, "id", None),
+        )
         return
     if len(links) > 10:
         await message.reply_text(

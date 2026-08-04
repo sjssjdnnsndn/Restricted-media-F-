@@ -39,6 +39,15 @@ logger = logging.getLogger(__name__)
     "mychannels", "batch", "broadcast", "admin", "credit", "reduce",
     "replyuser", "setjoin", "removejoin"]))
 async def on_msg(_, message: Message):
+    # Never process messages authored by a bot. This prevents bot-generated
+    # content or duplicate update streams from re-entering user flows.
+    if not message.from_user or getattr(message.from_user, "is_bot", False):
+        logger.warning(
+            "Ignoring bot-authored/private update: message_id=%s",
+            getattr(message, "id", None),
+        )
+        return
+
     uid  = message.from_user.id
     text = (message.text or "").strip()
     if not await enforce_fj(uid):

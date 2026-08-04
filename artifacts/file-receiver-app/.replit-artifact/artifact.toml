@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "File Receiver Bot"
+description = "A small publishable status page for the Telegram file receiver and main bot. It provides a public health endpoint for external cron monitors and shows whether the bot service is online."
+version = "1.0.0"
+id = "artifacts/file-receiver-app"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18586
+
+[services.development]
+run = "pnpm --filter @workspace/file-receiver-app run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/file-receiver-app", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/file-receiver-app/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18586"
+BASE_PATH = "/"

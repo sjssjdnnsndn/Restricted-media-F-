@@ -24,6 +24,10 @@ async def start_web():
         app    = web.Application()
         app.router.add_get("/",       lambda r: web.Response(text="OK"))
         app.router.add_get("/health", lambda r: web.Response(text="OK"))
+        # The API artifact is mounted at /api in the published router.
+        # Keep the received bot source untouched while exposing the same
+        # health response through the public artifact path.
+        app.router.add_get("/api/health", lambda r: web.Response(text="OK"))
         runner = web.AppRunner(app)
         await runner.setup()
         await web.TCPSite(runner, "0.0.0.0", PORT).start()

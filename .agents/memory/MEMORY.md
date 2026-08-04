@@ -1,0 +1,1 @@
+- [Publishable app registration](publishing-artifacts.md) — Replit Publishing requires a deployable web artifact; API and design artifacts alone can show “nothing to publish.”

@@ -1,13 +1,14 @@
 kind = "api"
-previewPath = "/"
-title = "Telegram Main Bot"
+previewPath = "/api"
+title = "Telegram Main Bot API"
+description = "The running Telegram main bot service with a public health endpoint and status API."
 version = "1.0.0"
 id = "3B4_FFSkEVBkAeYMFRJ2e"
 
 [[services]]
 localPort = 8080
 name = "API Server"
-paths = ["/"]
+paths = ["/api"]
 
 [services.development]
 run = "bash run-bot.sh"

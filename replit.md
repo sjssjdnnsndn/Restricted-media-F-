@@ -1,6 +1,6 @@
-# [Project name]
+# Telegram File Receiver
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A private Telegram bot that receives files and saves them into the project for later inspection.
 
 ## Run & Operate
 
@@ -10,6 +10,9 @@ _Replace the heading above with the project's name, and this line with one sente
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
+- Required secret: `TELEGRAM_BOT_TOKEN`
+- Optional env: `TELEGRAM_OWNER_CHAT_ID` to pre-authorize one private Telegram chat
+- Optional env: `FILE_RECEIVER_DIR` to change the saved-file directory
 
 ## Stack
 
@@ -22,15 +25,19 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- Telegram polling and file saving: `artifacts/api-server/src/telegramReceiver.ts`
+- Receiver status endpoint: `GET /api/telegram/status`
+- Received files and JSONL metadata: `received-files/`
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Uses Telegram long polling, so it does not require a public webhook URL.
+- The first private chat that sends `/start` becomes the owner when `TELEGRAM_OWNER_CHAT_ID` is not set.
+- Files are saved with sanitized names and message IDs; metadata is appended to `received-files.jsonl`.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+The bot accepts documents, photos, videos, audio, voice messages, and animations, then confirms each saved file in Telegram.
 
 ## User preferences
 

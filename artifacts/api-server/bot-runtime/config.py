@@ -14,6 +14,23 @@ from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 from pyrogram import Client
 
+
+def _install_telegram_utf8_compat():
+    """Normalize surrogate-pair escapes before Pyrogram encodes Telegram text."""
+    from pyrogram.raw.core.primitives.string import String
+
+    original_new = String.__new__
+
+    def safe_new(cls, value):
+        if isinstance(value, str):
+            value = value.encode("utf-16", "surrogatepass").decode("utf-16")
+        return original_new(cls, value)
+
+    String.__new__ = staticmethod(safe_new)
+
+
+_install_telegram_utf8_compat()
+
 load_dotenv()
 
 logging.basicConfig(
@@ -32,6 +49,11 @@ ADMIN_ID = int(os.environ.get("ADMIN_ID", "0"))
 MONGO_URL = os.environ.get("MONGO_URL", "").strip()
 DB_NAME = os.environ.get("DB_NAME", "BDL")
 PORT = int(os.environ.get("PORT", "8080"))
+DEPLOYMENT_MODE = os.environ.get("REPLIT_DEPLOYMENT", "").strip().lower()
+BOT_SESSION_NAME = os.environ.get(
+    "BOT_SESSION_NAME",
+    "tg_dl_bot_prod" if DEPLOYMENT_MODE in {"1", "true", "yes"} else "tg_dl_bot_dev",
+)
 
 
 def _detect_public_url() -> str:
@@ -115,7 +137,7 @@ def calc_timeout(file_size_bytes: int, base: int = 300) -> int:
 bot = None
 if BOT_TOKEN and API_ID and API_HASH:
     bot = Client(
-        "tg_dl_bot",
+        BOT_SESSION_NAME,
         api_id=API_ID,
         api_hash=API_HASH,
         bot_token=BOT_TOKEN,

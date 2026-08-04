@@ -100,6 +100,23 @@ async def main():
         await asyncio.Event().wait()
         return
 
+    # Pyrogram's decorator-based handlers are queued asynchronously by
+    # add_handler(). Let those registration tasks finish before start()
+    # initializes the dispatcher; otherwise the client can connect to
+    # Telegram while having zero message handlers.
+    await asyncio.sleep(0)
+    await asyncio.sleep(0.05)
+    registered_handlers = sum(
+        len(group) for group in bot.dispatcher.groups.values()
+    )
+    logger.info(
+        "Registered Telegram handlers: groups=%s handlers=%s",
+        len(bot.dispatcher.groups),
+        registered_handlers,
+    )
+    if registered_handlers == 0:
+        raise RuntimeError("No Telegram handlers registered before bot startup")
+
     logger.info("=" * 60)
     logger.info("BOT v24.1 - MODULAR VERSION")
     logger.info("Credits fix + Keep-alive + Modular split")

@@ -13,6 +13,9 @@ paths = ["/api"]
 [services.development]
 run = "bash run-bot.sh"
 
+[services.env]
+BOT_SESSION_NAME = "tg_dl_bot_dev"
+
 [services.production]
 
 [services.production.build]
@@ -27,6 +30,7 @@ args = ["bash", "run-bot.sh"]
 [services.production.run.env]
 PORT = "8080"
 NODE_ENV = "production"
+BOT_SESSION_NAME = "tg_dl_bot_prod"
 
 [services.production.health.startup]
 path = "/api"

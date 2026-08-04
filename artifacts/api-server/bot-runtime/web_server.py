@@ -23,6 +23,8 @@ async def start_web():
     try:
         app    = web.Application()
         app.router.add_get("/",       lambda r: web.Response(text="OK"))
+        # The artifact proxy health probe targets the API service prefix.
+        app.router.add_get("/api",     lambda r: web.Response(text="OK"))
         app.router.add_get("/health", lambda r: web.Response(text="OK"))
         # The API artifact is mounted at /api in the published router.
         # Keep the received bot source untouched while exposing the same
